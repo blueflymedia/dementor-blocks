@@ -1,0 +1,40 @@
+[
+	{
+		"id": "section1",
+		"elType": "section",
+		"settings": {},
+		"elements": [
+			{
+				"id": "video1",
+				"elType": "widget",
+				"widgetType": "video",
+				"settings": {
+					"youtube_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+				}
+			},
+			{
+				"id": "shortcode1",
+				"elType": "widget",
+				"widgetType": "shortcode",
+				"settings": {
+					"shortcode": "[gallery ids=\"1,2\"]"
+				}
+			},
+			{
+				"id": "list1",
+				"elType": "widget",
+				"widgetType": "icon-list",
+				"settings": {
+					"icon_list": [
+						{
+							"text": "First item"
+						},
+						{
+							"text": "Second item"
+						}
+					]
+				}
+			}
+		]
+	}
+]

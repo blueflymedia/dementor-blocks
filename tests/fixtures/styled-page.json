@@ -1,0 +1,30 @@
+[
+	{
+		"id": "section1",
+		"elType": "section",
+		"settings": {
+			"background_color": "#f6f7f7",
+			"text_color": "#111111",
+			"_padding": {
+				"top": 40,
+				"right": 32,
+				"bottom": 40,
+				"left": 32,
+				"unit": "px"
+			},
+			"css_classes": "elementor-global-style"
+		},
+		"elements": [
+			{
+				"id": "heading1",
+				"elType": "widget",
+				"widgetType": "heading",
+				"settings": {
+					"title": "Styled Page",
+					"header_size": "h2",
+					"text_color": "#111111"
+				}
+			}
+		]
+	}
+]

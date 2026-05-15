@@ -1,0 +1,18 @@
+[
+	{
+		"id": "section1",
+		"elType": "section",
+		"settings": {},
+		"elements": [
+			{
+				"id": "form1",
+				"elType": "widget",
+				"widgetType": "form",
+				"settings": {
+					"form_name": "Contact",
+					"button_text": "Send"
+				}
+			}
+		]
+	}
+]

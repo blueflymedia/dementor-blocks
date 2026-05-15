@@ -1,0 +1,80 @@
+[
+	{
+		"id": "section1",
+		"elType": "section",
+		"settings": {
+			"_padding": {
+				"top": 24,
+				"right": 24,
+				"bottom": 24,
+				"left": 24,
+				"unit": "px"
+			}
+		},
+		"elements": [
+			{
+				"id": "column1",
+				"elType": "column",
+				"settings": {},
+				"elements": [
+					{
+						"id": "heading1",
+						"elType": "widget",
+						"widgetType": "heading",
+						"settings": {
+							"title": "Migration Ready",
+							"header_size": "h2"
+						}
+					},
+					{
+						"id": "text1",
+						"elType": "widget",
+						"widgetType": "text-editor",
+						"settings": {
+							"editor": "<p>This page converts cleanly.</p>"
+						}
+					},
+					{
+						"id": "image1",
+						"elType": "widget",
+						"widgetType": "image",
+						"settings": {
+							"image": {
+								"id": 123,
+								"url": "https://example.com/image.jpg"
+							},
+							"image_alt": "Example image"
+						}
+					},
+					{
+						"id": "button1",
+						"elType": "widget",
+						"widgetType": "button",
+						"settings": {
+							"text": "Learn More",
+							"link": {
+								"url": "https://example.com"
+							}
+						}
+					},
+					{
+						"id": "spacer1",
+						"elType": "widget",
+						"widgetType": "spacer",
+						"settings": {
+							"space": {
+								"size": 32
+							}
+						}
+					},
+					{
+						"id": "divider1",
+						"elType": "widget",
+						"widgetType": "divider",
+						"settings": {}
+					}
+				]
+			}
+		]
+	}
+]

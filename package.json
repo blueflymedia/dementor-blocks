@@ -1,0 +1,27 @@
+{
+	"name": "dementor-blocks",
+	"version": "0.1.0",
+	"private": true,
+	"scripts": {
+		"start": "wp-scripts start src-js/index.js --output-path=build",
+		"build": "wp-scripts build src-js/index.js --output-path=build",
+		"format": "wp-scripts format",
+		"lint:js": "wp-scripts lint-js",
+		"test:e2e": "playwright test",
+		"test:playground": "playwright test tests/e2e/playground.spec.js",
+		"test:js": "wp-scripts test-unit-js",
+		"packages-update": "wp-scripts packages-update",
+		"zip": "wp-scripts build src-js/index.js --output-path=build && zip -r dementor-blocks.zip . -x 'node_modules/*' 'vendor/*' '.git/*' 'package*' 'composer.lock' 'phpunit.xml.dist' 'tests/*' '__tests__/*' '.DS_Store' '*.DS_Store'"
+	},
+	"devDependencies": {
+		"@playwright/test": "^1.60.0",
+		"@wordpress/scripts": "^31.8.0",
+		"@wp-playground/cli": "^3.1.33"
+	},
+	"dependencies": {
+		"@wordpress/api-fetch": "^7.43.0",
+		"@wordpress/components": "^32.5.0",
+		"@wordpress/element": "^6.43.0",
+		"@wordpress/i18n": "^6.0.0"
+	}
+}

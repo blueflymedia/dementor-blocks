@@ -1,0 +1,7 @@
+/node_modules/
+/vendor/
+/.DS_Store
+/dementor-blocks.zip
+/playwright-report/
+/test-results/
+*.log
