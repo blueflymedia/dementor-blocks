@@ -68,7 +68,7 @@ final class ConversionService {
 				MetaKeys::PRE_REPLACE_BACKUP,
 				[
 					'post_content' => $post->post_content,
-					'backed_up_at' => gmdate( 'c' ),
+					'backed_up_at' => (string) wp_date( 'c' ),
 				]
 			);
 
@@ -80,6 +80,22 @@ final class ConversionService {
 				true
 			);
 		} else {
+			$meta_input = [ MetaKeys::SOURCE_POST_ID => $post_id ];
+
+			$thumbnail_id = (int) get_post_thumbnail_id( $post_id );
+			if ( $thumbnail_id > 0 ) {
+				$meta_input['_thumbnail_id'] = $thumbnail_id;
+			}
+
+			$template = (string) get_post_meta( $post_id, '_wp_page_template', true );
+			if ( $template !== '' && $template !== 'default' ) {
+				$meta_input['_wp_page_template'] = $template;
+			}
+
+			if ( $style_mode === 'css' && $conversion['generated_css'] !== '' ) {
+				$meta_input[ MetaKeys::GENERATED_CSS ] = $conversion['generated_css'];
+			}
+
 			$target_id = wp_insert_post(
 				[
 					'post_type'      => 'page',
@@ -96,6 +112,7 @@ final class ConversionService {
 					'menu_order'     => (int) $post->menu_order,
 					'comment_status' => $post->comment_status,
 					'ping_status'    => $post->ping_status,
+					'meta_input'     => $meta_input,
 				],
 				true
 			);
@@ -111,28 +128,16 @@ final class ConversionService {
 		$target_id = (int) $target_id;
 
 		if ( $destination === 'duplicate' ) {
-			update_post_meta( $target_id, MetaKeys::SOURCE_POST_ID, $post_id );
-
-			// Carry over the data that lives in post meta but isn't part of the post
-			// row: featured image, page template, custom excerpt-on-blocks markers.
-			$thumbnail_id = (int) get_post_thumbnail_id( $post_id );
-			if ( $thumbnail_id > 0 ) {
-				set_post_thumbnail( $target_id, $thumbnail_id );
-			}
-
-			$template = (string) get_post_meta( $post_id, '_wp_page_template', true );
-			if ( $template !== '' && $template !== 'default' ) {
-				update_post_meta( $target_id, '_wp_page_template', $template );
-			}
-
-			// Never let Elementor's editor hijack the new block draft, even if some
-			// other code path tries to copy meta from the source post later.
+			// Source ID, thumbnail, template, and generated CSS were already written
+			// through `meta_input` on wp_insert_post above — one DB roundtrip total.
+			// We only need to defensively scrub Elementor's own meta so the editor
+			// can't hijack the new block draft.
 			delete_post_meta( $target_id, '_elementor_edit_mode' );
 			delete_post_meta( $target_id, '_elementor_data' );
 			delete_post_meta( $target_id, '_elementor_css' );
 		}
 
-		if ( $style_mode === 'css' && $conversion['generated_css'] !== '' ) {
+		if ( $destination === 'replace' && $style_mode === 'css' && $conversion['generated_css'] !== '' ) {
 			update_post_meta( $target_id, MetaKeys::GENERATED_CSS, $conversion['generated_css'] );
 		}
 
@@ -159,7 +164,7 @@ final class ConversionService {
 			'readiness'      => $audit['readiness'] ?? 'Manual Rebuild',
 			'warnings'       => array_values( array_unique( array_merge( $audit['warnings'] ?? [], $warnings ) ) ),
 			'errors'         => $status === 'failed' ? $warnings : [],
-			'converted_at'   => gmdate( 'c' ),
+			'converted_at'   => (string) wp_date( 'c' ),
 		];
 	}
 }

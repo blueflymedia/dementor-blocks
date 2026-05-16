@@ -55,40 +55,85 @@ final class Auditor {
 			return $result;
 		}
 
-		$flat                  = $this->parser->flatten( $parsed['data'] );
-		$result                = $this->base_result( $post_id );
-		$result['layout_depth'] = $this->max_depth( $parsed['data'] );
-		$supported             = BlockConverter::supported_widgets();
+		$result    = $this->base_result( $post_id );
+		$supported = BlockConverter::supported_widgets();
+		$has_css   = false;
 
-		foreach ( $flat as $node ) {
-			$type = isset( $node['elType'] ) && is_string( $node['elType'] ) ? $node['elType'] : '';
-
-			if ( in_array( $type, [ 'section', 'container', 'column' ], true ) ) {
-				++$result['layout_nodes'];
-			}
-
-			if ( $type !== 'widget' ) {
-				continue;
-			}
-
-			$widget = isset( $node['widgetType'] ) && is_string( $node['widgetType'] ) ? $node['widgetType'] : 'unknown';
-			++$result['widget_counts']['total'];
-			$result['widgets'][ $widget ] = ( $result['widgets'][ $widget ] ?? 0 ) + 1;
-
-			if ( in_array( $widget, $supported, true ) ) {
-				++$result['widget_counts']['supported'];
-			} else {
-				++$result['widget_counts']['unsupported'];
-				$result['unsupported_widgets'][] = $widget;
-			}
-		}
+		// Single recursive walk: count layout nodes, classify widgets, capture max
+		// layout-only depth, and short-circuit the CSS-dependency heuristic — all
+		// without allocating a flat array copy.
+		$this->walk( $parsed['data'], 0, $result, $supported, $has_css );
 
 		$result['unsupported_widgets'] = array_values( array_unique( $result['unsupported_widgets'] ) );
-		$result['has_global_css']      = $this->has_global_css_dependency( $post_id, $flat );
+		$result['has_global_css']      = $has_css || $this->has_post_elementor_css( $post_id );
 
 		$this->apply_warnings_and_score( $result );
 
 		return $result;
+	}
+
+	/**
+	 * @param array<int,array<string,mixed>> $nodes
+	 * @param array<string,mixed>            $result
+	 * @param array<int,string>              $supported
+	 */
+	private function walk( array $nodes, int $depth, array &$result, array $supported, bool &$has_css ): void {
+		foreach ( $nodes as $node ) {
+			if ( ! is_array( $node ) ) {
+				continue;
+			}
+
+			$type     = isset( $node['elType'] ) && is_string( $node['elType'] ) ? $node['elType'] : '';
+			$settings = isset( $node['settings'] ) && is_array( $node['settings'] ) ? $node['settings'] : [];
+			$children = isset( $node['elements'] ) && is_array( $node['elements'] ) ? $node['elements'] : [];
+
+			$is_layout = $type === 'section' || $type === 'container' || $type === 'column';
+
+			if ( $is_layout ) {
+				++$result['layout_nodes'];
+				$child_depth = $depth + 1;
+				if ( $child_depth > $result['layout_depth'] ) {
+					$result['layout_depth'] = $child_depth;
+				}
+			} elseif ( $type === 'widget' ) {
+				$widget = isset( $node['widgetType'] ) && is_string( $node['widgetType'] ) ? $node['widgetType'] : 'unknown';
+				++$result['widget_counts']['total'];
+				$result['widgets'][ $widget ] = ( $result['widgets'][ $widget ] ?? 0 ) + 1;
+
+				if ( in_array( $widget, $supported, true ) ) {
+					++$result['widget_counts']['supported'];
+				} else {
+					++$result['widget_counts']['unsupported'];
+					$result['unsupported_widgets'][] = $widget;
+				}
+			}
+
+			if ( ! $has_css && $this->settings_signal_global_css( $settings ) ) {
+				$has_css = true;
+			}
+
+			if ( $children !== [] ) {
+				// Only recurse depth for layout nodes — widget children (repeater items,
+				// icon-list rows) shouldn't count toward layout nesting.
+				$this->walk( $children, $is_layout ? $depth + 1 : $depth, $result, $supported, $has_css );
+			}
+		}
+	}
+
+	/**
+	 * @param array<string,mixed> $settings
+	 */
+	private function settings_signal_global_css( array $settings ): bool {
+		return array_any(
+			[ 'css_classes', 'custom_css', '_css_classes' ],
+			static fn ( string $key ): bool => ! empty( $settings[ $key ] )
+		);
+	}
+
+	private function has_post_elementor_css( int $post_id ): bool {
+		$elementor_css = get_post_meta( $post_id, MetaKeys::ELEMENTOR_CSS, true );
+
+		return is_array( $elementor_css ) || ( is_string( $elementor_css ) && trim( $elementor_css ) !== '' );
 	}
 
 	/**
@@ -134,7 +179,7 @@ final class Auditor {
 			'has_global_css'      => false,
 			'warnings'            => [],
 			'errors'              => [],
-			'audited_at'          => gmdate( 'c' ),
+			'audited_at'          => (string) wp_date( 'c' ),
 		];
 	}
 
@@ -179,45 +224,4 @@ final class Auditor {
 		}
 	}
 
-	/**
-	 * @param array<int,array<string,mixed>> $nodes
-	 */
-	private function has_global_css_dependency( int $post_id, array $nodes ): bool {
-		$elementor_css = get_post_meta( $post_id, MetaKeys::ELEMENTOR_CSS, true );
-
-		if ( is_array( $elementor_css ) || ( is_string( $elementor_css ) && trim( $elementor_css ) !== '' ) ) {
-			return true;
-		}
-
-		foreach ( $nodes as $node ) {
-			$settings = isset( $node['settings'] ) && is_array( $node['settings'] ) ? $node['settings'] : [];
-
-			foreach ( [ 'css_classes', 'custom_css', '_css_classes' ] as $key ) {
-				if ( ! empty( $settings[ $key ] ) ) {
-					return true;
-				}
-			}
-		}
-
-		return false;
-	}
-
-	/**
-	 * @param array<int,array<string,mixed>> $nodes
-	 */
-	private function max_depth( array $nodes, int $depth = 0 ): int {
-		$max = $depth;
-
-		foreach ( $nodes as $node ) {
-			if ( ! is_array( $node ) ) {
-				continue;
-			}
-
-			if ( isset( $node['elements'] ) && is_array( $node['elements'] ) ) {
-				$max = max( $max, $this->max_depth( $node['elements'], $depth + 1 ) );
-			}
-		}
-
-		return $max;
-	}
 }

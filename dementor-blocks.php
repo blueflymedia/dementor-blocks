@@ -20,6 +20,8 @@ declare(strict_types=1);
 
 namespace DementorBlocks;
 
+use DementorBlocks\MetaKeys;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -91,9 +93,50 @@ final class Plugin {
 	}
 
 	public function boot(): void {
+		$this->register_meta();
 		$this->admin_page->init();
 		$this->generated_css->init();
 		$this->rest_controller->init();
+	}
+
+	/**
+	 * Register every plugin-owned post meta key with an explicit auth_callback so
+	 * future code paths (REST block-editor sidebars, third-party meta browsers)
+	 * can't accidentally expose our internal audit/conversion state. All keys are
+	 * private — they live behind manage_options-gated REST routes — so we also
+	 * keep them out of the core REST meta endpoint via show_in_rest = false.
+	 */
+	private function register_meta(): void {
+		$only_admins = static fn (): bool => current_user_can( 'manage_options' );
+
+		$keys = [
+			MetaKeys::AUDIT_RESULT       => 'array',
+			MetaKeys::CONVERSION_RESULT  => 'array',
+			MetaKeys::SOURCE_POST_ID     => 'integer',
+			MetaKeys::GENERATED_CSS      => 'string',
+			MetaKeys::PRE_REPLACE_BACKUP => 'array',
+		];
+
+		foreach ( $keys as $key => $type ) {
+			register_post_meta(
+				'page',
+				$key,
+				[
+					'type'              => $type,
+					'single'            => true,
+					'show_in_rest'      => false,
+					'auth_callback'     => $only_admins,
+					'sanitize_callback' => static function ( $value ) use ( $type ) {
+						return match ( $type ) {
+							'integer' => (int) $value,
+							'string'  => is_string( $value ) ? $value : '',
+							'array'   => is_array( $value ) ? $value : [],
+							default   => $value,
+						};
+					},
+				]
+			);
+		}
 	}
 }
 
